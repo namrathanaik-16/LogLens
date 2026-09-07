@@ -10,6 +10,12 @@ ERROR_PATTERNS=[
     "CONNECTION BROKEN",
     "FAILED TO FETCH",
 ]
+NOISE_PATTERNS=[
+    "/assets/",
+    ".js(#)",
+    ".css(#)",
+    "sourceMappingURL"
+]
 def extract_timestamp(line):
     """
     Extract timestamp from LinuxTV log format.
@@ -44,7 +50,7 @@ def detect_severity(line):
         return "ERROR"
     if "EXCEPTION" in upper_line:
         return "ERROR"
-    if "WARN" is upper_line:
+    if "WARN" == upper_line:
         return "WARNING"
     return None
 
@@ -69,6 +75,44 @@ def detect_errors(lines):
                 "message":line.strip()
             })
     return errors
+def categorize_error(message):
+    """
+    Categorise smart TV errors into subsystem
+    """
+    msg=message.upper() 
+
+    #network
+    if any(word in msg for word in[
+        "SSL","HTTP","FETCH","SOCKET","NETWORK",
+        "HANDSHAKE","DNS","CONNECT"
+    ]):
+        return "NETWORK"
+    #playback
+    if any(word in msg for word in[
+        "BUFFER","BITRATE","MANIFEST","DASH",
+        "PLAYBACK","SEGMENT","VAST"
+    ]):
+        return "PLAYBACK"
+    
+    #Audio
+    if any(word in msg for word in[
+        "AUDIO","AAC","PCM","SPEAKER","VOLUME"
+    ]):
+        return "AUDIO"
+
+    #DRM
+    if any(word in msg for word in[
+        "DRM","WIDEVINE","LICENSE","ISSUER"
+    ]):
+        return "DRM"
+    
+    #bluetooth
+    if any(word in msg for word in[
+        "BLUETOOTH","BT_","BLUEDROID"
+    ]):
+        return "BLUETOOTH"
+    return "System"
+
 def group_errors(errors):
     groups = {}
 
@@ -90,18 +134,35 @@ def group_errors(errors):
         if ":" in msg:
             msg = msg.split(":")[-1].strip()
 
-        # Remove numbers
-        msg = re.sub(r'\d+', '#', msg)
+        #Normal thread IDs
+        msg=re.sub(r'tid\d+', 'tid', msg)
 
-        # Remove multiple spaces
-        msg = re.sub(r'\s+', ' ', msg).strip()
+        #Normalize process IDs
+        msg=re.sub(r'pid\d+', 'pid', msg)
 
-        key = (error["severity"], msg)
+        #Normalize ERR values
+        msg=re.sub(r'ERR=\d+', 'ERR=#', msg)
+
+        #Normalize numbers inside brackets only
+        msg=re.sub(r'\[\d+\]', '[#]', msg)
+
+        #Normalize standalone file indexes like (123)
+        msg=re.sub(r'\(\d+\)', '(#)', msg)
+
+        #clean spaces
+        msg=re.sub(r'\s+', ' ', msg).strip()
+
+        print(type(msg),msg)
+        key = (error["severity"], str(msg))
+
+        if any(pattern in msg for pattern in NOISE_PATTERNS):
+            continue
 
         if key not in groups:
             groups[key] = {
                 "severity": error["severity"],
                 "pattern": error["pattern"],
+                "category":categorize_error(msg),
                 "message": msg,
                 "occurrences": 0,
                 "first_line": error["line_number"],
@@ -124,3 +185,30 @@ def group_errors(errors):
         key=lambda x: x["occurrences"],
         reverse=True
     )
+
+def generate_summary(grouped_errors):
+
+    categories = {}
+
+    for issue in grouped_errors:
+        cat = issue["category"]
+        categories[cat] = categories.get(cat, 0) + 1
+
+    top_issues = []
+
+    for i, issue in enumerate(grouped_errors[:10], start=1):
+        top_issues.append({
+            "id": i,
+            "category": issue["category"],
+            "severity": issue["severity"],
+            "message": issue["message"],
+            "occurrences": issue["occurrences"],
+            "first_line": issue["first_line"],
+            "last_line": issue["last_line"]
+        })
+
+    return {
+        "unique_issues": len(grouped_errors),
+        "categories": categories,
+        "top_issues": top_issues
+    }
