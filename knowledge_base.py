@@ -1,227 +1,113 @@
 ERROR_RULES = [
 
-    # ---------------- NETWORK ----------------
-
+    # ---------- NETWORK ----------
     {
-        "contains": ["SSL", "HANDSHAKE"],
-        "title": "SSL Handshake Failure",
-        "category": "NETWORK",
+        "contains": ["MONITOR_NEW_SESSION", "NETWORK CURL FAIL"],
+        "title": "Network Connectivity Failure",
+        "meaning": "Device failed the internet connectivity check.",
+        "possible_cause": "DNS, gateway, or internet unavailable.",
+        "qa_action": "Verify Ethernet/Wi-Fi and retry connectivity test.",
         "priority": "HIGH",
-        "meaning": "Secure HTTPS connection could not be established.",
-        "possible_cause": "Internet instability or certificate validation failed.",
-        "qa_action": "Verify Wi-Fi and retry HTTPS request."
+        "category": "NETWORK"
     },
-
     {
-        "contains": ["INTERFACENETWORKLINUX"],
-        "title": "Network Interface Status",
-        "category": "NETWORK",
-        "priority": "LOW",
-        "meaning": "Linux virtual interface status could not be read.",
-        "possible_cause": "Kernel virtual interface inactive.",
-        "qa_action": "Ignore unless primary interface also fails."
-    },
-
-    {
-        "contains": ["NOT CONNECT AND RETURN"],
-        "title": "Socket Connection Failed",
-        "category": "NETWORK",
+        "contains": ["IPV6", "INTERFACE NOT FOUND"],
+        "title": "IPv6 Interface Missing",
+        "meaning": "Requested network interface could not be found.",
+        "possible_cause": "Network adapter unavailable.",
+        "qa_action": "Check interface initialization.",
         "priority": "MEDIUM",
-        "meaning": "Remote socket connection was unavailable.",
-        "possible_cause": "Server unreachable.",
-        "qa_action": "Check network connectivity."
+        "category": "NETWORK"
     },
 
+    # ---------- PLAYBACK ----------
     {
-        "contains": ["FAILED TO FETCH"],
-        "title": "HTTP Fetch Failed",
-        "category": "NETWORK",
+        "contains": ["UNEXPECTED SOURCE TYPE"],
+        "title": "Source Detection Error",
+        "meaning": "TV failed to identify the current playback source.",
+        "possible_cause": "Invalid HDMI or input state.",
+        "qa_action": "Reconnect source and verify input selection.",
+        "priority": "MEDIUM",
+        "category": "PLAYBACK"
+    },
+    {
+        "contains": ["FAST CHANNEL", "STREAM_ERROR"],
+        "title": "FAST Channel Stream Failure",
+        "meaning": "Streaming channel entered an error state.",
+        "possible_cause": "Manifest or stream unavailable.",
+        "qa_action": "Validate stream URL and playback.",
         "priority": "HIGH",
-        "meaning": "HTTP resource download failed.",
-        "possible_cause": "Network timeout.",
-        "qa_action": "Reproduce with stable internet."
+        "category": "PLAYBACK"
     },
-
-    # ---------------- SYSTEM ----------------
-
     {
-        "contains": ["MI_SYS_GETCONFIGDATA"],
-        "title": "System Configuration Failure",
-        "category": "SYSTEM",
-        "priority": "MEDIUM",
-        "meaning": "Configuration service failed.",
-        "possible_cause": "Middleware initialization issue.",
-        "qa_action": "Check boot sequence."
-    },
-
-    {
-        "contains": ["OPAPPKEYHANDLER"],
-        "title": "Application Key Handler Error",
-        "category": "SYSTEM",
-        "priority": "MEDIUM",
-        "meaning": "Key event handler reported an invalid state.",
-        "possible_cause": "Application state mismatch.",
-        "qa_action": "Reproduce using the same key sequence."
-    },
-
-    {
-        "contains": ["UPGRADESTATUS"],
-        "title": "Upgrade Status Error",
-        "category": "SYSTEM",
+        "contains": ["WEBVTT", "UNKNOWN CODEC"],
+        "title": "Subtitle Codec Unsupported",
+        "meaning": "Adaptive streaming subtitle codec is unsupported.",
+        "possible_cause": "Invalid WebVTT subtitle track.",
+        "qa_action": "Validate subtitle codec in MPD/HLS manifest.",
         "priority": "LOW",
-        "meaning": "Unexpected firmware upgrade state detected.",
-        "possible_cause": "Background OTA process.",
-        "qa_action": "Verify OTA status."
+        "category": "PLAYBACK"
     },
 
+    # ---------- AUDIO ----------
     {
-        "contains": ["NO_ERR"],
-        "title": "False Error Flag",
-        "category": "SYSTEM",
-        "priority": "LOW",
-        "meaning": "Error log contains NO_ERR state.",
-        "possible_cause": "Informational message.",
-        "qa_action": "Can usually be ignored."
-    },
-
-    # ---------------- DRM ----------------
-
-    {
-        "contains": ["WIDEVINE", "CERT1.BIN"],
-        "title": "Widevine Certificate Missing",
-        "category": "DRM",
+        "contains": ["AAC DECODER FAILED", "AAC"],
+        "title": "AAC Decode Error",
+        "meaning": "AAC decoder failed during playback.",
+        "possible_cause": "Corrupted audio stream.",
+        "qa_action": "Verify AAC track and playback.",
         "priority": "HIGH",
-        "meaning": "Required Widevine certificate file is missing.",
-        "possible_cause": "DRM provisioning incomplete.",
-        "qa_action": "Verify Widevine certificates."
+        "category": "AUDIO"
     },
 
+    # ---------- DRM ----------
     {
         "contains": ["WIDEVINE", "LICENSE"],
-        "title": "Widevine License Failure",
-        "category": "DRM",
+        "title": "Widevine DRM License Error",
+        "meaning": "Widevine license acquisition failed.",
+        "possible_cause": "License server unavailable.",
+        "qa_action": "Verify DRM certificate and license server.",
         "priority": "HIGH",
-        "meaning": "DRM license validation failed.",
-        "possible_cause": "License server communication failed.",
-        "qa_action": "Check DRM provisioning."
+        "category": "DRM"
     },
 
+    # ---------- SYSTEM ----------
     {
-        "contains": ["DRM"],
-        "title": "DRM Runtime Error",
-        "category": "DRM",
+        "contains": ["UPGRADESTATUS"],
+        "title": "Firmware Upgrade Status Error",
+        "meaning": "Firmware upgrade process returned an unexpected state.",
+        "possible_cause": "Upgrade state machine mismatch.",
+        "qa_action": "Validate firmware update sequence.",
         "priority": "MEDIUM",
-        "meaning": "Protected playback encountered an error.",
-        "possible_cause": "Content protection issue.",
-        "qa_action": "Reproduce using DRM content."
+        "category": "SYSTEM"
     },
-
-    # ---------------- PLAYBACK ----------------
-
     {
-        "contains": ["SENDTOUCS FAILED"],
-        "title": "Audio Playback Pipeline Failure",
-        "category": "PLAYBACK",
+        "contains": ["MXTVR_CHANNELLIST_GETALLCHANNELSFORLIST", "INTERNAL BUFFER NULL"],
+        "title": "Channel List Buffer Error",
+        "meaning": "TV failed to retrieve the channel list because the internal buffer was null.",
+        "possible_cause": "Channel database was not initialized correctly.",
+        "qa_action": "Rescan channels and verify channel database.",
         "priority": "HIGH",
-        "meaning": "Audio pipeline failed to send data.",
-        "possible_cause": "Audio framework communication failure.",
-        "qa_action": "Verify playback and audio HAL."
+        "category": "SYSTEM"
     },
 
     {
-        "contains": ["DECODER"],
-        "title": "Video Decoder Error",
-        "category": "PLAYBACK",
+        "contains": ["ONPLAYBACKEVENT", "TTUI_FASTCHANNEL"],
+        "title": "FAST Channel Playback Event Error",
+        "meaning": "Playback event failed while handling FAST channel streaming.",
+        "possible_cause": "Streaming state transition failed.",
+        "qa_action": "Validate playback event flow and FAST channel manifest.",
         "priority": "HIGH",
-        "meaning": "Video decoder encountered an error.",
-        "possible_cause": "Corrupted stream.",
-        "qa_action": "Replay the same video."
+        "category": "PLAYBACK"
     },
 
     {
-        "contains": ["BUFFER"],
-        "title": "Playback Buffer Underflow",
-        "category": "PLAYBACK",
+        "contains": ["TTUI_PICTURE_GETCURRENTSOURCE", "UNEXPECTED SOURCE TYPE"],
+        "title": "Current Source Detection Failed",
+        "meaning": "The TV could not determine the active input source.",
+        "possible_cause": "Invalid HDMI or tuner source state.",
+        "qa_action": "Verify source switching and TTUI Picture module.",
         "priority": "MEDIUM",
-        "meaning": "Playback buffer emptied unexpectedly.",
-        "possible_cause": "Slow streaming.",
-        "qa_action": "Check bandwidth."
+        "category": "PLAYBACK"
     },
-
-    {
-        "contains": ["MANIFEST"],
-        "title": "Streaming Manifest Error",
-        "category": "PLAYBACK",
-        "priority": "HIGH",
-        "meaning": "Manifest parsing failed.",
-        "possible_cause": "Invalid DASH/HLS manifest.",
-        "qa_action": "Verify streaming URL."
-    },
-
-    # ---------------- AUDIO ----------------
-
-    {
-        "contains": ["SETVOLUME"],
-        "title": "Audio Volume Event",
-        "category": "AUDIO",
-        "priority": "LOW",
-        "meaning": "Volume controller received an update.",
-        "possible_cause": "User or system volume change.",
-        "qa_action": "Informational only."
-    },
-
-    {
-        "contains": ["AAC"],
-        "title": "AAC Decode Error",
-        "category": "AUDIO",
-        "priority": "MEDIUM",
-        "meaning": "AAC decoder failed.",
-        "possible_cause": "Unsupported audio stream.",
-        "qa_action": "Verify audio codec."
-    },
-
-    {
-        "contains": ["PCM"],
-        "title": "PCM Audio Error",
-        "category": "AUDIO",
-        "priority": "MEDIUM",
-        "meaning": "PCM pipeline encountered an error.",
-        "possible_cause": "Audio routing issue.",
-        "qa_action": "Check speaker output."
-    },
-
-    # ---------------- HDMI ----------------
-
-    {
-        "contains": ["HDMI", "EDID"],
-        "title": "HDMI EDID Failure",
-        "category": "HDMI",
-        "priority": "HIGH",
-        "meaning": "TV failed to read HDMI capabilities.",
-        "possible_cause": "EDID negotiation failed.",
-        "qa_action": "Reconnect HDMI source."
-    },
-
-    {
-        "contains": ["HDCP"],
-        "title": "HDCP Authentication Failed",
-        "category": "HDMI",
-        "priority": "HIGH",
-        "meaning": "Copy protection handshake failed.",
-        "possible_cause": "HDCP mismatch.",
-        "qa_action": "Reconnect HDMI cable."
-    },
-
-    # ---------------- AIRPLAY ----------------
-
-    {
-        "contains": ["AIRPLAY"],
-        "title": "AirPlay Session Error",
-        "category": "AIRPLAY",
-        "priority": "MEDIUM",
-        "meaning": "AirPlay session failed.",
-        "possible_cause": "Wireless instability.",
-        "qa_action": "Reconnect iPhone."
-    }
-
 ]
