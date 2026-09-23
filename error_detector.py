@@ -1,177 +1,181 @@
+from analyzers.knowledge_base import ERROR_RULES
 import re
-ERROR_PATTERNS=[
+
+
+# -------------------- Knowledge Base --------------------
+
+def explain_error(message):
+    upper_msg = message.upper()
+
+    for rule in ERROR_RULES:
+        if any(keyword in upper_msg for keyword in rule["contains"]):
+            return {
+                "title": rule["title"],
+                "meaning": rule["meaning"],
+                "possible_cause": rule["possible_cause"],
+                "qa_action": rule["qa_action"],
+                "priority": rule["priority"],
+                "category": rule["category"]
+            }
+
+    return {
+        "title": "Unknown System Error",
+        "meaning": "No explanation available yet.",
+        "possible_cause": "Unknown",
+        "qa_action": "Inspect the original log.",
+        "priority": "LOW",
+        "category": "SYSTEM"
+    }
+
+
+# -------------------- Error Patterns --------------------
+
+ERROR_PATTERNS = [
     "ERROR",
     "FAILED",
     "FAILURE",
     "CRITICAL",
     "FATAL",
-    "EXCEPTION"
+    "EXCEPTION",
     "HANDSHAKE FAILED",
     "CONNECTION BROKEN",
     "FAILED TO FETCH",
 ]
-NOISE_PATTERNS=[
+
+NOISE_PATTERNS = [
     "/assets/",
     ".js(#)",
     ".css(#)",
     "sourceMappingURL"
 ]
+
+
+# -------------------- Helpers --------------------
+
 def extract_timestamp(line):
-    """
-    Extract timestamp from LinuxTV log format.
-
-    Example:
-    Jun 17 07:32:12.847 LinuxTV ...
-    """
-
-    match=re.search(
-         r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)"
-         r"\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\.\d{3}",
-         line
+    match = re.search(
+        r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)"
+        r"\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\.\d{3}",
+        line
     )
-    if match:
-        return match.group(0)
-    
-    return None
+    return match.group(0) if match else None
+
 
 def detect_severity(line):
-    """
-    Determine the severity of a log line.
-    """
+    upper = line.upper()
 
-    upper_line=line.upper()
-    if "CRITICAL" in upper_line:
+    if "CRITICAL" in upper:
         return "CRITICAL"
-    if "FATAL" in upper_line:
+    if "FATAL" in upper:
         return "FATAL"
-    if "ERROR" in upper_line:
+    if "ERROR" in upper:
         return "ERROR"
-    if "FAILED" in upper_line or "FAILURE" in upper_line:
+    if "FAILED" in upper or "FAILURE" in upper:
         return "ERROR"
-    if "EXCEPTION" in upper_line:
+    if "EXCEPTION" in upper:
         return "ERROR"
-    if "WARN" == upper_line:
+    if "WARN" in upper:
         return "WARNING"
+
     return None
 
+
+# -------------------- Detect Errors --------------------
+
 def detect_errors(lines):
-    """
-    Scan the complete log and return structured error information.
-    """
-    errors=[]
+    errors = []
+
     for line_number, line in enumerate(lines, start=1):
-        upper_line=line.upper()
-        matched_pattern=None
+
+        upper = line.upper()
+        matched = None
+
         for pattern in ERROR_PATTERNS:
-            if pattern in upper_line:
-                matched_pattern=pattern
+            if pattern in upper:
+                matched = pattern
                 break
-        if matched_pattern:
+
+        if matched:
             errors.append({
-                "line_number":line_number,
-                "timestamp":extract_timestamp(line),
-                "severity":detect_severity(line),
-                "pattern":matched_pattern,
-                "message":line.strip()
+                "line_number": line_number,
+                "timestamp": extract_timestamp(line),
+                "severity": detect_severity(line),
+                "pattern": matched,
+                "message": line.strip()
             })
+
     return errors
-def categorize_error(message):
-    """
-    Categorise smart TV errors into subsystem
-    """
-    msg=message.upper() 
 
-    #network
-    if any(word in msg for word in[
-        "SSL","HTTP","FETCH","SOCKET","NETWORK",
-        "HANDSHAKE","DNS","CONNECT"
-    ]):
-        return "NETWORK"
-    #playback
-    if any(word in msg for word in[
-        "BUFFER","BITRATE","MANIFEST","DASH",
-        "PLAYBACK","SEGMENT","VAST"
-    ]):
-        return "PLAYBACK"
-    
-    #Audio
-    if any(word in msg for word in[
-        "AUDIO","AAC","PCM","SPEAKER","VOLUME"
-    ]):
-        return "AUDIO"
 
-    #DRM
-    if any(word in msg for word in[
-        "DRM","WIDEVINE","LICENSE","ISSUER"
-    ]):
-        return "DRM"
-    
-    #bluetooth
-    if any(word in msg for word in[
-        "BLUETOOTH","BT_","BLUEDROID"
-    ]):
-        return "BLUETOOTH"
-    return "System"
+# -------------------- Group Errors --------------------
 
 def group_errors(errors):
+
     groups = {}
 
     for error in errors:
 
-        msg = error["message"]
+        original_msg = error["message"].strip()
 
-        # Remove ANSI colors
-        msg = re.sub(r'\x1b\[[0-9;]*m', '', msg)
+        # Ignore unwanted frontend asset logs
+        if any(p.lower() in original_msg.lower() for p in NOISE_PATTERNS):
+            continue
 
-        # Remove timestamp
-        msg = re.sub(
-            r'^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+\s+\d{2}:\d{2}:\d{2}\.\d{3}\s+',
+        # Message used ONLY for grouping
+        clean_msg = original_msg
+
+        # Remove timestamps
+        clean_msg = re.sub(
+            r'^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+\s+\d{2}:\d{2}:\d{2}\.\d+\s+',
             '',
-            msg
+            clean_msg
         )
 
-        # Keep only the actual message after the last colon
-        if ":" in msg:
-            msg = msg.split(":")[-1].strip()
+        clean_msg = re.sub(
+            r'^\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d+\s+',
+            '',
+            clean_msg
+        )
 
-        #Normal thread IDs
-        msg=re.sub(r'tid\d+', 'tid', msg)
+        # Remove thread IDs / process IDs
+        clean_msg = re.sub(r'<\d+>', '<#>', clean_msg)
+        clean_msg = re.sub(r'\(\d+\.\d+\)', '(#)', clean_msg)
+        clean_msg = re.sub(r'\(\d+\)', '(#)', clean_msg)
 
-        #Normalize process IDs
-        msg=re.sub(r'pid\d+', 'pid', msg)
+        # Normalize values
+        clean_msg = re.sub(r'ERR=\d+', 'ERR=#', clean_msg)
+        clean_msg = re.sub(r'0x[0-9A-Fa-f]+', '0x#', clean_msg)
+        clean_msg = re.sub(r'\b\d+\b', '#', clean_msg)
+        
+        clean_msg = re.sub(r'\s+', ' ', clean_msg).strip()
 
-        #Normalize ERR values
-        msg=re.sub(r'ERR=\d+', 'ERR=#', msg)
-
-        #Normalize numbers inside brackets only
-        msg=re.sub(r'\[\d+\]', '[#]', msg)
-
-        #Normalize standalone file indexes like (123)
-        msg=re.sub(r'\(\d+\)', '(#)', msg)
-
-        #clean spaces
-        msg=re.sub(r'\s+', ' ', msg).strip()
-
-        print(type(msg),msg)
-        key = (error["severity"], str(msg))
-
-        if any(pattern in msg for pattern in NOISE_PATTERNS):
-            continue
+        key = (error["severity"], clean_msg)      # Used for grouping
+        info = explain_error(original_msg)  
 
         if key not in groups:
             groups[key] = {
                 "severity": error["severity"],
                 "pattern": error["pattern"],
-                "category":categorize_error(msg),
-                "message": msg,
+                "category": info["category"],
+                "title": info["title"],
+                "meaning": info["meaning"],
+                "possible_cause": info["possible_cause"],
+                "qa_action": info["qa_action"],
+                "priority": info["priority"],
+
+            # Show the ORIGINAL log text in the UI
+                "message": original_msg,
+
                 "occurrences": 0,
                 "first_line": error["line_number"],
                 "last_line": error["line_number"],
                 "timestamps": [],
-                "line_numbers": []
+                "line_numbers": [],
+                "log_lines": []
             }
 
         group = groups[key]
+
         group["occurrences"] += 1
         group["last_line"] = error["line_number"]
 
@@ -180,11 +184,21 @@ def group_errors(errors):
 
         group["line_numbers"].append(error["line_number"])
 
+        # Original log lines for Log Inspector
+        group["log_lines"].append({
+            "line_number": error["line_number"],
+            "timestamp": error["timestamp"],
+            "message": original_msg
+        })
+
     return sorted(
         groups.values(),
         key=lambda x: x["occurrences"],
         reverse=True
     )
+
+
+# -------------------- Summary --------------------
 
 def generate_summary(grouped_errors):
 
@@ -194,21 +208,27 @@ def generate_summary(grouped_errors):
         cat = issue["category"]
         categories[cat] = categories.get(cat, 0) + 1
 
-    top_issues = []
+    issues = []
 
-    for i, issue in enumerate(grouped_errors[:10], start=1):
-        top_issues.append({
+    for i, issue in enumerate(grouped_errors, start=1):
+        issues.append({
             "id": i,
             "category": issue["category"],
             "severity": issue["severity"],
+            "title": issue["title"],
+            "meaning": issue["meaning"],
+            "possible_cause": issue["possible_cause"],
+            "qa_action": issue["qa_action"],
+            "priority": issue["priority"],
             "message": issue["message"],
             "occurrences": issue["occurrences"],
             "first_line": issue["first_line"],
-            "last_line": issue["last_line"]
+            "last_line": issue["last_line"],
+            "log_lines": issue["log_lines"]
         })
 
     return {
         "unique_issues": len(grouped_errors),
         "categories": categories,
-        "top_issues": top_issues
+        "top_issues": issues
     }
