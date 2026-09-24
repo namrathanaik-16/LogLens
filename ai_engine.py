@@ -2,8 +2,11 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
-# Fast embedding model
-model = SentenceTransformer("paraphrase-MiniLM-L3-v2")
+# -------------------- AI MODEL --------------------
+
+model = SentenceTransformer("all-MiniLM-L6-v2")
+
+# -------------------- KNOWLEDGE BASE --------------------
 
 KB = [
     {
@@ -17,42 +20,42 @@ KB = [
     {
         "title": "IPv6 Interface Missing",
         "category": "NETWORK",
-        "text": "ipv6 interface unavailable network adapter initialization",
-        "meaning": "IPv6 interface could not be initialized.",
-        "impact": "Network discovery may be unstable.",
-        "qa": "Check network adapter initialization."
+        "text": "ipv6 interface unavailable network adapter initialization interface not found p2p1",
+        "meaning": "Requested network interface could not be found.",
+        "impact": "Network discovery and streaming may fail.",
+        "qa": "Check IPv6 adapter initialization and network configuration."
     },
     {
-        "title": "FAST Channel Playback Error",
+        "title": "FAST Channel Playback Event Error",
         "category": "PLAYBACK",
-        "text": "fast channel playback stream manifest onplaybackevent",
-        "meaning": "Playback pipeline entered an invalid streaming state.",
+        "text": "fast channel playback onplaybackevent streaming event",
+        "meaning": "Playback event failed while handling FAST channel streaming.",
         "impact": "Video may freeze or fail to start.",
         "qa": "Validate playback events and MPD manifest."
     },
     {
-        "title": "Source Detection Error",
+        "title": "FAST Channel Stream Failure",
         "category": "PLAYBACK",
-        "text": "unexpected source type hdmi tuner current source",
-        "meaning": "TV failed to determine the active source.",
-        "impact": "Incorrect source selection or black screen.",
-        "qa": "Verify HDMI/source switching."
+        "text": "fast channel receive stream status stream error stream_state",
+        "meaning": "Streaming channel entered an error state.",
+        "impact": "FAST channel playback becomes unavailable.",
+        "qa": "Inspect stream status, manifest and CDN connectivity."
     },
     {
         "title": "Channel List Buffer Error",
         "category": "SYSTEM",
-        "text": "channel list internal buffer null getallchannels",
+        "text": "channel list internal buffer null getallchannels mxtvr channel list",
         "meaning": "Channel database returned a null buffer.",
-        "impact": "Channel list cannot load.",
-        "qa": "Rescan channels and validate database."
+        "impact": "TV failed to retrieve the channel list.",
+        "qa": "Rescan channels and validate channel database."
     },
     {
-        "title": "Widevine DRM License Error",
-        "category": "DRM",
-        "text": "widevine drm license certificate provisioning",
-        "meaning": "Widevine license acquisition failed.",
-        "impact": "Protected content cannot play.",
-        "qa": "Verify DRM certificate and license server."
+        "title": "Source Detection Error",
+        "category": "PLAYBACK",
+        "text": "unexpected source type getcurrentsource hdmi tuner picture source",
+        "meaning": "TV failed to determine the active source.",
+        "impact": "Incorrect source selection or black screen.",
+        "qa": "Verify HDMI/source switching."
     },
     {
         "title": "AAC Decode Error",
@@ -61,25 +64,34 @@ KB = [
         "meaning": "AAC decoder failed during playback.",
         "impact": "Playback may continue without audio.",
         "qa": "Validate AAC audio track."
+    },
+    {
+        "title": "Widevine DRM License Error",
+        "category": "DRM",
+        "text": "widevine drm license provisioning certificate",
+        "meaning": "Widevine license acquisition failed.",
+        "impact": "Protected content cannot play.",
+        "qa": "Verify DRM certificate and license server."
     }
 ]
 
-kb_vectors = model.encode(
-    [k["text"] for k in KB],
+# -------------------- PRECOMPUTE EMBEDDINGS --------------------
+
+EMBEDDINGS = model.encode(
+    [item["text"] for item in KB],
     normalize_embeddings=True
 )
 
-def enrich_issue(message):
-    """
-    AI enrichment for ONE grouped issue.
-    """
+# -------------------- AI CLASSIFICATION --------------------
 
-    vec = model.encode(
+def enrich_issue(message):
+    query = model.encode(
         [message],
         normalize_embeddings=True
     )
 
-    scores = cosine_similarity(vec, kb_vectors)[0]
+    scores = cosine_similarity(query, EMBEDDINGS)[0]
+
     idx = int(np.argmax(scores))
     score = float(scores[idx])
 
@@ -92,5 +104,5 @@ def enrich_issue(message):
         "possible_cause": best["impact"],
         "qa_action": best["qa"],
         "confidence": round(score * 100, 1),
-        "priority": "HIGH" if score > 0.82 else "MEDIUM"
+        "priority": "HIGH" if score >= 0.80 else "MEDIUM"
     }
