@@ -393,8 +393,8 @@ LogLens/
 
 ### Phase 5 — AI Investigation
 
-- [ ] AI integration
-- [ ] Error explanation
+- [x] AI integration
+- [x] Error explanation
 - [ ] Event correlation
 - [ ] Root cause hypothesis
 - [ ] Evidence extraction
