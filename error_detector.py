@@ -180,8 +180,17 @@ def group_errors(errors):
         )
 
     # ---------- AI ENRICHMENT ----------
-    for group in groups.values():
+    # Sort first
+    sorted_groups = sorted(
+        groups.values(),
+        key=lambda x: x["occurrences"],
+        reverse=True
+    )
+
+# AI only for top 100
+    for group in sorted_groups[:100]:
         ai = enrich_issue(group["message"])
+
 
         if ai["confidence"] > 55:
             group["title"] = ai["title"]
@@ -221,7 +230,7 @@ def generate_summary(grouped_errors):
                 "possible_cause": issue["possible_cause"],
                 "qa_action": issue["qa_action"],
                 "priority": issue["priority"],
-                "confidence": issue["confidence"],
+                "confidence": issue.get("confidence", 100),
                 "message": issue["message"],
                 "occurrences": issue["occurrences"],
                 "first_line": issue["first_line"],
