@@ -220,12 +220,6 @@ LogLens/
 * [x] Timestamp viewer
 * [x] AI investigation summary
 
-### Phase 4 — Storage & Reporting *(Upcoming)*
-
-* [ ] SQLite session history
-* [ ] Export investigation report
-* [ ] Previous analysis history
-
 ---
 
 ## 🔄 Investigation Workflow
