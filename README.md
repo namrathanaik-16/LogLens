@@ -361,23 +361,23 @@ LogLens/
 - [x] FastAPI setup
 - [x] Uvicorn setup
 - [x] Basic API endpoint
-- [ ] Log upload API
+- [x] Log upload API
 
 ### Phase 2 — Log Processing
 
-- [ ] Log file validation
-- [ ] Timestamp extraction
-- [ ] Log-level detection
-- [ ] Error detection
-- [ ] Warning detection
-- [ ] Line number tracking
-- [ ] Component identification
+- [x] Log file validation
+- [x] Timestamp extraction
+- [x] Log-level detection
+- [x] Error detection
+- [x] Warning detection
+- [x] Line number tracking
+- [x] Component identification
 
 ### Phase 3 — Interactive Log Viewer
 
-- [ ] Complete log viewer
-- [ ] Line numbers
-- [ ] Search
+- [x] Complete log viewer
+- [x] Line numbers
+- [x] Search
 - [ ] Error highlighting
 - [ ] Warning highlighting
 - [ ] Jump-to-line
